@@ -44,6 +44,9 @@ usearch -derep_fulllength reads.fa -fastaout derep.fa -sizeout
 # Abundance sort and discard singletons
 usearch -sortbysize derep.fa -fastaout sorted.fa -minsize 2
 
+# ITSx
+ITSx -i sorted.fa -o sorted.itsx.fa
+
 # OTU clustering
 usearch -cluster_otus sorted.fa -otus otus1.fa -relabel OTU_ -sizeout -uparseout cluster_results.txt
 
