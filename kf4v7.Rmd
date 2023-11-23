@@ -4,11 +4,30 @@ output:
   html_document:
     toc: yes
 ---
-```{r set-options, echo=FALSE, cache=FALSE}
+```{r setup, echo=FALSE, cache=FALSE}
 options(width = 400)
 # create folders for output of tables and figures
 if (!dir.exists("tables")) {dir.create("tables")}
 if (!dir.exists("figures")) {dir.create("figures")}
+if (!dir.exists("figures_extra")) {dir.create("figures_extra")}
+
+tidy_phyloseq <- function(my_phyloseq){
+  # Fix ranks. 
+  colnames(tax_table(my_phyloseq)) = c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
+  # fix taxa names
+  tax_table(my_phyloseq)[,colnames(tax_table(my_phyloseq))] <- gsub(tax_table(my_phyloseq)[,colnames(tax_table(my_phyloseq))],pattern="[a-z]__",replacement="")
+  return(my_phyloseq)
+}
+
+# from_phyloseq_web 
+veganotu = function(physeq) {
+  require(vegan)
+    OTU = otu_table(physeq)
+    if (taxa_are_rows(OTU)) {
+        OTU = t(OTU)
+    }
+    return(as(OTU, "matrix"))
+}
 ```
 
 Analysis of fungal sequence data derived from the same DNA extractions as those used in our previous bacterial analysis ([Elliott et al 2014](http://dx.doi.org/10.1007/s10531-014-0684-8)). The analysis for that paper can be found [here](http://davidelliott.github.io/kalahari_bacteria/kalahari_BSC_bacteria.html). 
@@ -32,67 +51,32 @@ library("phyloseq"); library("ggplot2"); library("scales"); library("grid"); lib
 
 biom <- import_biom("data/fungi/otutab.biom",taxaPrefix="X")
 map <- import_qiime_sample_data("data/fungi/map.txt")
-
 map$zone2line <- sub(pattern="_",replacement="\n",x=map$zone)
-
 expt <- qza_to_phyloseq(features = "data/fungi/feature-table-1.qza",
                 taxonomy = "data/fungi/unite-v9-dynamic-vsearch-classifications.qza")
-
 expt <- merge_phyloseq(expt, map)
-
-
-# add bacterial phylum to the environmental data
-# bac_phylum <- read.csv("data/otu_table_bacteria_phylum_rel.csv",na.strings = "")
-#bac_phylumt = setNames(data.frame(t(bac_phylum[,-1])), bac_phylum[,1])
-#colnames(bac_phylumt) <- gsub(pattern = "-",replacement = ".",x = colnames(bac_phylumt))
-#sample_data(expt) <- cbind(sample_data(expt), bac_phylumt[row.names(map),])
-
-tidy_phyloseq <- function(my_phyloseq){
-  # Fix ranks. 
-  colnames(tax_table(my_phyloseq)) = c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
-  # fix taxa names
-  tax_table(my_phyloseq)[,colnames(tax_table(my_phyloseq))] <- gsub(tax_table(my_phyloseq)[,colnames(tax_table(my_phyloseq))],pattern="[a-z]__",replacement="")
-  return(my_phyloseq)
-}
-
-# from_phyloseq_web 
-veganotu = function(physeq) {
-  require(vegan)
-    OTU = otu_table(physeq)
-    if (taxa_are_rows(OTU)) {
-        OTU = t(OTU)
-    }
-    return(as(OTU, "matrix"))
-}
-
 expt <- tidy_phyloseq(expt)
 
-# Add new names to sample data for plots
+# add bacterial phylum abundance to the environmental data
+bac_phylum <- read.csv("data/bacteria/otu_table_bacteria_phylum_rel.csv",na.strings = "")
+bac_phylumt = setNames(data.frame(t(bac_phylum[,-1])), bac_phylum[,1])
+colnames(bac_phylumt) <- gsub(pattern = "-",replacement = ".",x = colnames(bac_phylumt))
+sample_data(expt) <- cbind(sample_data(expt), bac_phylumt[row.names(map),])
+
+# Re-formatting and adding new names to sample data for plots
 sample_data(expt)$depth2 <- "0-1 cm"
 sample_data(expt)$depth2[sample_data(expt)$depth == 1] <- "1-2 cm"
-
 samples <- as.character(sample_data(expt)$X.SampleID)
 sample_data(expt)$samples <- as.factor(substr(samples, 1, nchar(samples)-1))
-
 sample_data(expt)$zc_depth <- paste(sample_data(expt)$zone_code,sample_data(expt)$depth,sep="")
 
-expt.rel <- transform_sample_counts(expt, function(x) 100*x/(sum(x)))
-# check that the above worked properly:
-# sample_sums(expt.rel)
-# yes - all samples add up to 100
-
 print(expt)
-map.df <- as.data.frame(sample_data(expt))
 
-map.df$n.sequences <- colSums(otu_table(expt))[row.names(map.df)]
+# Prepare some phyloseq and other objects for later use
+expt.rel <- transform_sample_counts(expt, function(x) 100*x/(sum(x)))
+# check that the above worked properly: sample_sums(expt.rel) > yes - all samples add up to 100
 
 expt.rel.class <- tax_glom(expt.rel,taxrank="Class")
-rank_names(expt)
-
-# write.csv(otu_table(expt),"tables/17_otu_count.csv")
-# write.csv(otu_table(expt.rel),"tables/17_otu.csv")
-
-# Prepare some phyloseq objects for later use
 expt.rel.phylum <- tax_glom(expt.rel,taxrank="Phylum")
 
 expt.rel.phylum.all <- merge_samples(expt.rel.phylum,"ReversePrimer")
@@ -106,11 +90,15 @@ taxa_names(expt.rel.phylum.all) <- tax_table(expt.rel.phylum.all)[,2]
 sample_names(expt.rel.phylum.all) <- "overall"
 taxa_names(expt.rel.phylum.type) <- tax_table(expt.rel.phylum.type)[,2]
 taxa_names(expt.rel.phylum.veg) <- tax_table(expt.rel.phylum.veg)[,2]
+
+map.df <- as.data.frame(sample_data(expt))
+map.df$n.sequences <- colSums(otu_table(expt))[row.names(map.df)]
+
 ```
 
 
 ## Bacteria
-Bacterial data is from Elliott et al (2014)
+Bacterial data are from Elliott et al (2014)
 
 ```{r bac_import, echo=FALSE,message=FALSE}
 
@@ -143,7 +131,9 @@ theme_set(theme_bw(base_size = 12, base_family = ""))
 alpha = 0.75
 # define colour scales
 #color_var = c(levels((get_variable(expt, "type"))), levels((get_variable(expt, "zone_code"))), levels((get_variable(expt, "cover"))))
-color_var = c(levels((get_variable(expt, "type"))), levels((get_variable(expt, "zone_code"))))
+# color_var = c(levels((get_variable(expt, "type"))), levels((get_variable(expt, "zone_code"))))
+color_var = unique(c(get_variable(expt, "type"),get_variable(expt, "zone_code")))
+
 
 color_pal = brewer.pal(length(color_var), "Set1")
 names(color_pal) <- color_var
@@ -294,8 +284,7 @@ p.ord
   anova(mod.canopy.type)
   
   # The plots and further analyses below were used to check further
-  # but are commented out here to reduce the amount of outputs.
-  
+
   ## Plot the groups and distances to centroids on the
   ## first two PCoA axes
 plot(mod.open.zone)
@@ -337,106 +326,11 @@ This table shows results for the community data at OTU (97 % similarity). The â€
   NMDS = ordinate(expt.canopy, "NMDS", dist.canopy)
   print(adonis2(dist.canopy ~ zone + depth + month , as(sample_data(expt.canopy), "data.frame")) )
 
-
 ```
 
 (see also Note S1)
 
-
-```{r deseq_depth, fig.width=12,fig.height=10,echo=FALSE, message=FALSE, warning=FALSE}
-
-  # using the same subsetted object as was used in ADONIS - grass sites only because the ADONIS indicated a depth related difference only on the grass (open) sites.
-  expt.deseq <- expt.open 
-
-  expt.deseq <- tidy_phyloseq(expt.deseq)
-  # prune OTUs that are not present in at least one sample
-  expt.deseq = prune_taxa(taxa_sums(expt.deseq) > 0, expt.deseq)
-  
-  # add 1 to the whole OTU table, to avoid infinity problems
-  # this will reduce the fold changes
-  otu_table(expt.deseq) <- otu_table(expt.deseq)+1
-  
-  typedds = phyloseq_to_deseq2(expt.deseq, ~ type)
-  typedds = DESeq(typedds, test="Wald",fitType="parametric")
-  # DESeq docs:
-  #On p-values:
-  # By default, independent filtering is performed to select a set of genes for multiple test correction which will optimize the number of adjusted p-values less than a given critical value alpha (by default 0.1). The adjusted p-values for the genes which do not pass the filter threshold are set to NA. 
-  
-# When using local regression fit, the user should examine plotDispEsts(dds)
-# to make sure the fitted line is not sharply curving up or down based on
-# the position of individual points.
-
-  #  plotDispEsts(typedds,main="model check")
-
-  res = results(typedds, cooksCutoff = FALSE, alpha = 0.05)
-  alpha = 0.05
-  sigtab_type = res
-  
-  # add observed data to deseq results
-
-  expt.rel.open <- subset_samples(expt.rel, cover=="open")
-# Division by 12 is because phyloseq "sums" in merge_samples, and there are 12 samples of each
-  otus.rel.open.by.type <- otu_table(merge_samples(expt.rel.open,group = "type"))/12
-  orbt <- as.data.frame(t(otus.rel.open.by.type))
-
-#length(row.names(sigtab_type))
-#length(row.names(orbt))
-
-sigtab_type <- cbind(sigtab_type[row.names(sigtab_type),],orbt[row.names(sigtab_type),])
-# add a difference column
-sigtab_type$diff.depth <- sigtab_type$crust - sigtab_type$subsoil
-# Reverse the sign of the fold change so that it represents crust:subsoil not subsoil:crust
-sigtab_type$log2FoldChange <- sigtab_type$log2FoldChange * -1
-# Sanity check on the model vs actual observed difference
-sigtab_type$sane.depth <- sign(sigtab_type$log2FoldChange)==(sign(sigtab_type$diff.depth))
-# add a link to a figure that will be made later
-sigtab_type$fig <- paste("<a href='figures_extra/sig_type_",row.names(sigtab_type),".png'>plot</a>",sep="")
-# store the results object for creating a plot
-deseq_depth_results <- res
-```
-
-```{r deseq_cover, fig.width=12,fig.height=10,echo=FALSE, message=FALSE, warning=FALSE}
-
-# re-written, to be removed
-
-  # POSSIBLE ERROR. Do not appear to have subset the expt object here - need to check if that was intended. 
-  # Have checked and that was the intention so there is no error, this is as stated in the methods. I.E. the "depth" analysis is done on all samples.
-  # It is intended to look into the distribution of fungi in relation to the presence of grasses vs trees/shrubs
-  # As done here, it does include the sub-surface soil in addition to the biocrust. That is consistent with the hypotheses, it would also be valid to limit it to the biocrust.
-
-  expt.deseq <- expt
-
-  # add 1 to the whole OTU table, to avoid infinity problems
-  # this will reduce the fold changes
-  otu_table(expt.deseq) <- otu_table(expt.deseq)+1
-  
-  coverdds = phyloseq_to_deseq2(expt.deseq, ~ cover)
-  coverdds = DESeq(coverdds, test="Wald",fitType="parametric")
-
-  # plotDispEsts(coverdds,main="model check")
-
-  res = results(coverdds, cooksCutoff = FALSE, alpha = 0.05)
-  alpha = 0.05
-  sigtab_cover = res
-  
-  # add observed data to deseq results
-# Division by 24 is because phyloseq "sums" in merge_samples, and there are 24 samples of each
-  otus.rel.by.cover <- otu_table(merge_samples(expt.rel,group = "cover"))/24
-  orbc <- as.data.frame(t(otus.rel.by.cover))
-
-  #sigtab_cover <- cbind(sigtab_cover,orbc)
-  sigtab_cover <- cbind(sigtab_cover[row.names(sigtab_cover),],orbc[row.names(sigtab_cover),])
-  
-  # add a difference column
-
-  sigtab_cover$diff.cover <- sigtab_cover$open - sigtab_cover$canopy
-# Sanity check on the model vs actual observed difference
-sigtab_cover$sane.cover <- sign(sigtab_cover$log2FoldChange)==(sign(sigtab_cover$diff.cover))
-# add a link to a figure that will be made later
-sigtab_cover$fig <- paste("<a href='figures_extra/sig_cover_",row.names(sigtab_cover),".png'>plot</a>",sep="")
-# store the results object for creating a plot
-deseq_cover_results <- res
-```
+*** blocks deseq-cover and deseq_depth removed from here (replaced with new versions) - check all is well then remove this note.
 
 Use differential abundance analysis to identify which fungi are associated with the cyanobacterial biocrust containing areas (open grass interspaces)
 ```{r DESeq_new1, echo=FALSE, message=FALSE, warning=FALSE}
@@ -673,16 +567,25 @@ dev.off()
 
 
 ```{r deseq_tables,echo=FALSE}
-# the deseq analyses produced 2 tables: sigtab_cover and sigtab_type
+# the deseq analyses produced multiple outputs depending on the comparisons made
 # here they are adjusted and combined for eventual output
 
 #### First build a master table with all the OTU information known
+bigtab = as.data.frame(tax_table(expt))
 
-  bigtab = as.data.frame(tax_table(expt))
+# merge the deseq results tables and suffix with identification of the originating test
 
-# merge the 2 deseq tables and suffix with .depth or .cover
+# all OTUs were first compared to see if they are more abundant in canopy or open areas
+# This is stored in deseq_cover_results and should include all the OTUs
+deseq_cover_results <- as.data.frame(deseq_cover_results)
+colnames(deseq_cover_results) <- paste(colnames(deseq_cover_results),".cover",sep="")
 
-sigtabs <- merge(as.data.frame(sigtab_cover),as.data.frame(sigtab_type),by.x=0,by.y=0,all.x=T,suffixes=c(".cover",".depth")) 
+# Next, OTUs were compared for abundance differences by depth - this was focused on the OTUs which were more abundant 
+# in either canopy or open areas - therefore these analyses do not contain all the OTUs
+# These results are stored in deseq_canopy_by_depth_results and deseq_biocrust_by_depth_results
+# The following 2 commands merge the 3 results tables together into a table called sigtabs
+sigtabs <- merge(as.data.frame(deseq_canopy_by_depth_results),as.data.frame(deseq_biocrust_by_depth_results),by.x=0,by.y=0,all.x=T,all.y=T,suffixes=c(".canopy.depth",".open.depth")) 
+sigtabs <- merge(as.data.frame(deseq_cover_results),as.data.frame(sigtabs),by.y="Row.names",by.x=0,all.x=T,all.y=T)
 
 # merge the taxonomy with the deseq results
 bigtab <- merge(bigtab,sigtabs,by.x=0,by.y="Row.names",all.x=T) 
@@ -690,76 +593,9 @@ bigtab <- merge(bigtab,sigtabs,by.x=0,by.y="Row.names",all.x=T)
 # set row names as OTU names
 row.names(bigtab) <- bigtab$Row.names
 
-# prepare "subset" tables with the most significant results which will be main tables in the manuscript
-wanted_cols_type <- c("Phylum",  "Class",  "Order",	"Family",	"padj.depth","crust","subsoil","diff.depth","assoc.cover")
-wanted_cols_cover <- c("Phylum",  "Class",  "Order",	"Family",	"padj.cover","canopy","open","diff.cover","assoc.depth")
-wanted_rows_type <- (bigtab$padj.depth<0.05) & (!is.na(bigtab$padj.depth)) & bigtab$sane.depth
-wanted_rows_cover <- (bigtab$padj.cover<0.05) & (!is.na(bigtab$padj.cover)) & bigtab$sane.cover
-
-# record in bigtab which OTUs are associated by depth or canopy type
-bigtab$assoc.type <- NA
-bigtab[wanted_rows_type&bigtab$diff.depth>0,"assoc.depth"] <- "0-1 cm"
-bigtab[wanted_rows_type&bigtab$diff.depth<0,"assoc.depth"] <- "1-2 cm"
-
-bigtab$assoc.cover <- NA
-bigtab$assoc.cover.marker <- 3
-bigtab[wanted_rows_cover&bigtab$diff.cover>0,"assoc.cover"] <- "open"
-bigtab[wanted_rows_cover&bigtab$diff.cover>0,"assoc.cover.marker"] <- 64
-bigtab[wanted_rows_cover&bigtab$diff.cover<0,"assoc.cover"] <- "canopy"
-bigtab[wanted_rows_cover&bigtab$diff.cover<0,"assoc.cover.marker"] <- 17
-
-sigtab_type.subset <- bigtab[wanted_rows_type,wanted_cols_type]
-sigtab_cover.subset <- bigtab[wanted_rows_cover,wanted_cols_cover]
-# order by diff
-sigtab_type.subset <- sigtab_type.subset[order(sigtab_type.subset$diff.depth,decreasing = T),] 
-sigtab_cover.subset <- sigtab_cover.subset[order(sigtab_cover.subset$diff.cover,decreasing = T),] 
-
-```
-
-## Table. Fungi that are significantly (adjusted p <0.05) more abundant in biocrusts (0-1 cm depth) or subsoil (1-2 cm depth) in grass interspaces on Kalahari arenosols of southern Botswana. This table is removed from the revised manuscript, replaced by a volcano plot. However, it is kept here for reference. 
-
-```{r results='asis',echo=FALSE}
-# display an html table of significant OTUs identified by DESEQ
-
-print(type="html",xtable(sigtab_type.subset[sigtab_type.subset$diff.depth>1,],digits=c(3,3,3,3,3,3,3,6,3,3)), sanitize.text.function = function(x) x)
-
-print(type="html",xtable(sigtab_type.subset[sigtab_type.subset$diff.depth < -1,],digits=c(3,3,3,3,3,3,3,6,3,3)), sanitize.text.function = function(x) x)
-```
-
-The OTUs shown are those with mean difference in abundance between the two depths exceeding 1 % of the community. These are a subset of `r nrow(sigtab_type.subset)` OTUs which are shown in full along with adjusted P values in Table S3. 
-
-## Table. Fungi of Kalahari arenosols in southern Botswana that are significantly (adjusted p <0.05) more abundant in grass interspaces with cyanobacterial biocrusts, or in soils lacking cyanobacteria under shrubs and trees. This table is removed from the revised manuscript, replaced by a volcano plot. However, it is kept here for reference.
-
-```{r results='asis',echo=FALSE}
-# display an html table of significant OTUs identified by DESEQ
-
-print(type="html",xtable(sigtab_cover.subset[sigtab_cover.subset$diff.cover>1,],digits=c(3,3,3,3,3,3,3,6,3,3)), sanitize.text.function = function(x) x)
-
-print(type="html",xtable(sigtab_cover.subset[sigtab_cover.subset$diff.cover< -1,],digits=c(3,3,3,3,3,3,3,6,3,3)), sanitize.text.function = function(x) x)
-```
-
-The OTUs shown are those with mean difference in abundance between canopy (no cyanobacteria) and open (cyanobacterial biocrust present) areas exceeding 1 % of the community. These are a subset of `r nrow(sigtab_cover.subset)` OTUs which differed significantly, all of which are shown in full along with adjusted P values in Table S3. 
-
-## Table X. Fungi of Kalahari arenosols in southern Botswana that are significantly increased in open areas but not significantly correlated with biocrust in open areas.
-Not including this table in the manuscript, but leaving here for reference. Note that the top OTUs in this table can be identified in Table 3 (those having no depth association). This info can also be found in supplement bigtable.csv.
-
-```{r results='asis',echo=FALSE}
-
-# identify OTUs that are significantly increased in open areas but not significantly correlated with biocrust in open areas:
-
-sig_otus.open <- row.names(sigtab_cover.subset[sigtab_cover.subset$diff>0,])
-sig_otus.crust <- row.names(sigtab_type.subset[order(sigtab_type.subset$diff,decreasing = T),])
-biocrust_profile_otus <- sig_otus.open[!sig_otus.open%in%sig_otus.crust]
-
-
-wanted_cols_profile <- c("Phylum" ,	"Class" ,	"Order" ,	"Family"   , "canopy","open",	"diff.cover",	"padj.cover" ,"crust","subsoil" ,	"diff.depth" ,	"padj.depth"	)
-
-bigtab_cover.subset.profile <- bigtab[biocrust_profile_otus,]
-#row.names(bigtab_cover.subset.profile) <- bigtab_cover.subset.profile$Row.names
-# order the table by abundance difference between open and canopy zones
-bigtab_cover.subset.profile <- bigtab_cover.subset.profile[order(bigtab_cover.subset.profile$diff.cover,decreasing = T),]
-# print the top 6
-print(type="html",xtable(bigtab_cover.subset.profile[1:6,wanted_cols_profile]), sanitize.text.function = function(x) x)
+# make a list of OTUs that are associated by depth
+OTU_depth_associated.open <- row.names(bigtab[(!is.na(bigtab$padj.open.depth)) & (bigtab$padj.open.depth<0.05),])
+OTU_depth_associated.canopy <- row.names(bigtab[(!is.na(bigtab$padj.canopy.depth)) & (bigtab$padj.canopy.depth<0.05),])
 
 ```
 
@@ -816,10 +652,8 @@ rarecurve(exptv,step = 100,label = T,cex=0.6,bty="n",col=cols)
 ```{r}
 rich <- estimate_richness(expt,split=TRUE)
 map.df <- cbind(map.df,rich[row.names(map.df),])
-
-write.csv(map.df,file="tables/sample_data.csv")
 ```
-Various tables are in the [tables](tables/) folder. Table S3 is called sample_data.csv.
+Various tables are in the [tables](tables/) folder. Table S1 is called sample_data.csv.
 
 ## Table S2. Relative abundance of fungal phlya in Kalahari arenosols of southern Botswana. 
 Overall results are shown in addition to breakdown by depth and nearby vegetation type. 
@@ -838,9 +672,9 @@ print(type="html",xtable(phylum_summary))
 ```
 
 
-## Table S3. OTU summary including taxonomy, relative abundance, and statistical results indicating differential abundance by depth and nearby vegetation.
+## Table S3. OTU summary including taxonomy and differential abundance analysis results.
 
-Various tables are in the [tables](tables/) folder. Table S3 is called bigtab.csv.
+Various tables are in the [tables](tables/) folder. Table S3 is called differential-abundance.csv.
 
 
 ## Note S1. ADONIS test for community differences with respect to vegetation zone, depth, and sampling month.
@@ -1008,9 +842,16 @@ cor.test(x=rich.plus$succession,y=rich.plus$Shannon, method="spearman", exact=F)
 ```{r sigplots,echo=FALSE, warning=FALSE, eval=FALSE}
 # Save a plot of all the significant OTUs (EVAL=FALSE to save processing time. No need to regenerate the plots every time)
 
-for(otu in row.names(sigtab_type.subset) ) {
-    this_otu <- cbind( sample_data(expt.rel.open)[,c("zone","type")] , t(otu_table(expt.rel.open)[otu,]) )
-    png(paste("figures_extra/sig_type_", otu,".png", sep=""),units="mm", res=600 , width = 174, height = 174)
+for(otu in OTU_depth_associated.open ) {
+    this_otu <- cbind( sample_data(expt.rel)[,c("zone","type")] , t(otu_table(expt.rel)[otu,]) )
+    png(paste("figures_extra/sig_depth_open_", otu,".png", sep=""),units="mm", res=600 , width = 174, height = 174)
+    print(ggplot(this_otu,aes_string(x="zone",y=otu,colour="type")) + geom_boxplot() + geom_point() + scale_y_log10()) 
+    dev.off()
+}
+
+for(otu in OTU_depth_associated.canopy ) {
+    this_otu <- cbind( sample_data(expt.rel)[,c("zone","type")] , t(otu_table(expt.rel)[otu,]) )
+    png(paste("figures_extra/sig_depth_canopy_", otu,".png", sep=""),units="mm", res=600 , width = 174, height = 174)
     print(ggplot(this_otu,aes_string(x="zone",y=otu,colour="type")) + geom_boxplot() + geom_point() + scale_y_log10()) 
     dev.off()
 }
@@ -1021,14 +862,11 @@ for(otu in row.names(sigtab_type.subset) ) {
 
 for(otu in row.names(sigtab_cover.subset) ) {
     this_otu <- cbind( sample_data(expt.rel)[,c("cover","type")] , t(otu_table(expt.rel)[otu,]) )
-    png(paste("figures_extra/sig_cover_", otu,".png", sep=""),units="mm", res=600 , width = 174, height = 174)
+    png(paste("figures/sig_cover_", otu,".png", sep=""),units="mm", res=600 , width = 174, height = 174)
     print(ggplot(this_otu,aes_string(x="type",y=otu,colour="cover")) + geom_boxplot() + geom_point() + scale_y_log10()) 
     dev.off()
 }
 ```
-
-
-
 
 
 ## Caclulations for manuscript text
@@ -1038,16 +876,6 @@ cat("Individual abundance of ten most abundant taxonomic classes" )
 taxa_sums(expt.rel.class.topN)/nsamples(expt.rel.class.topN)
 cat("Combined abundance of ten most abundant taxonomic classes" )
 sum(taxa_sums(expt.rel.class.topN)/nsamples(expt.rel.class.topN))
-cat("number of OTUs significantly more abundant in subsoil (open areas with cyanobacterial crust only):\n")
-sum(sigtab_type.subset$diff.depth<0)
-cat("number of OTUs significantly more abundant in crust (open areas with cyanobacterial crust only):\n")
-sum(sigtab_type.subset$diff.depth>0)
-cat("number of OTUs significantly more abundant in open area:\n")
-sum(sigtab_cover.subset$diff.cover>0)
-cat("number of OTUs significantly more abundant in canopy area:\n")
-sum(sigtab_cover.subset$diff.cover<0)
-cat("number of OTUs significantly more abundant in open ares but not significantly differing by depth in open areas")
-length(biocrust_profile_otus)
 cat("number of fungal sequence reads")
 summary(sample_sums(expt))
 cat("total number of fungal sequence reads")
@@ -1059,12 +887,16 @@ sum(sample_sums(expt))
 ```{r fig.width=12,fig.height=10,echo=FALSE, message=FALSE, warning=FALSE}
 # output some tables...
 
-write.csv(sigtab_cover,file="tables/sigtab_cover.csv")
-write.csv(sigtab_type,file="tables/sigtab_type.csv")
-write.csv(bigtab,file="tables/bigtab.csv")
-write.csv(bigtab_cover.subset.profile,file="tables/bigtab_profile.csv")
+# Sample metadata
+write.csv(map.df,file="tables/sample_data.csv")
 
+# OTU frequency per sample
+write.csv(otu_table(expt),"tables/otu_count.csv")
 
+# Deseq differential abundance results
+write.csv(bigtab,file="tables/differential-abundance.csv")
+
+# OTU abundance
 rel_otu <- cbind(tax_table(expt.rel),otu_table(expt.rel))
 expt.zcdepth <- merge_samples(expt.rel,group = "zc_depth")
 expt.zcdepth <- transform_sample_counts(expt.zcdepth, function(x) x/6)
@@ -1072,11 +904,6 @@ rel_otu_by_factor <- cbind(tax_table(expt.zcdepth),t(otu_table(expt.zcdepth)))
 
 write.csv(rel_otu,file="tables/otus_tax_and_rel_abundance.csv")
 write.csv(rel_otu_by_factor,file="tables/otus_tax_and_rel_abundance_by_factor.csv")
-
-# Tables for BES workshop
-write.csv(otu_table(expt),"tables/17_otu_count.csv")
-write.csv(otu_table(expt.rel)/100,"tables/17_otu.csv")
-write.csv(tax_table(expt),"tables/17_tax.csv")
 
 ```
 
@@ -1099,10 +926,6 @@ dev.off()
 pdf(file = "figures/Figure 4.pdf", width=5, height=5)
 fig4
 dev.off()
-
-
-
-
 
 ```
 
