@@ -1,0 +1,63 @@
+# Raw sequence handling and OTU picking was done using script data/fungi/kf_analysis.sh
+# QIIME2 was used for OTU table conversion, metadata handling and taxonomy assignment as detailed here
+# R was used for statistical analyses and data presentation as detailed in kf4.Rmd
+
+# QIIME2 in conda environment was used for all the QIIME commands noted here
+# $ conda activate qiime2-2023.5
+
+# import otus.fa and otutab.biom from kf_analysis.sh output into QIIME2 for taxonomy assignment
+
+# move to the folder for the fungi raw sequence bioinformatics pipeline
+cd data/fungi
+
+# import the otus
+qiime tools import \
+  --input-path otus.fa \
+  --output-path sequences.qza \
+  --type 'FeatureData[Sequence]'
+
+# import OTU table
+qiime tools import \
+  --input-path otutab.biom \
+  --type 'FeatureTable[Frequency]' \
+  --input-format BIOMV100Format \
+  --output-path feature-table-1.qza
+
+qiime metadata tabulate \
+  --m-input-file map.txt \
+  --o-visualization tabulated-sample-metadata.qzv
+
+qiime tools import \
+  --input-path map.txt \
+  --type 'FeatureTable[Metadata]' \
+  --output-path metadata.qza
+
+# Import taxanomy file from UNITE
+# Downloaded from https://doi.plutof.ut.ee/doi/10.15156/BIO/2483915
+
+qiime tools import \
+--type FeatureData[Taxonomy] \
+--input-path UNITE/sh_taxonomy_qiime_ver9_dynamic_29.11.2022.txt \
+--output-path unite-ver9-taxonomy_dynamic_29.11.2022.qza \
+--input-format HeaderlessTSVTaxonomyFormat
+
+qiime tools import \
+  --type 'FeatureData[Sequence]' \
+  --input-path UNITE/sh_refs_qiime_ver9_dynamic_29.11.2022.fasta \
+  --output-path unite-ver9-seqs_dynamic_29.11.2022.qza 
+
+qiime feature-classifier fit-classifier-naive-bayes \
+--i-reference-reads unite-ver9-seqs_dynamic_29.11.2022.qza \
+--i-reference-taxonomy unite-ver9-taxonomy_dynamic_29.11.2022.qza \
+--o-classifier unite-ver9-dynamic-classifier-29.11.2022.qza
+
+
+qiime feature-classifier classify-consensus-vsearch \
+--i-query sequences.qza \
+--i-reference-reads unite-ver9-seqs_dynamic_29.11.2022.qza \
+--i-reference-taxonomy unite-ver9-taxonomy_dynamic_29.11.2022.qza \
+--o-classification unite-v9-dynamic-vsearch-classifications.qza \
+--o-search-results unite-v9-dynamic-vsearch-classifier-results.qza
+
+# I chose the dynamic version of the taxonomy based on the UNITE documentation recommendations.
+
