@@ -179,13 +179,11 @@ names(zone_shapes) <- names(zone_colours)
 ```
 
 # Main Tables & Figures
-## Figure 1. Schematic representation of hypothetical roles for fungi in biocrusts, and expected distribution consistent with these roles. 
-(not shown here)
 
-## Figure 2. Mixed tree, shrub and grass rangeland at the study site. 
+## Figure 1. Mixed tree, shrub and grass rangeland at the study site. 
 Extensive bare soil patches as shown here between grasses are common and support the development of biocrusts. Photographs of individual vegetation types can be found in Elliott et al (2014). (not shown here)
 
-## Figure 3. Fungal class abundance by vegetation zone and depth in Kalahari arenosols, southern Botswana. 
+## Figure 2. Fungal class abundance by vegetation zone and depth in Kalahari arenosols, southern Botswana. 
 
 ```{r class_plots_alt2,echo=FALSE,message=FALSE, fig.width=8, fig.height=4, warning=FALSE}
 
@@ -235,7 +233,7 @@ Boxes represent the interquartile range (IQR), and error bars extend to the most
 zone_plot2
 ```
 
-## Figure 4. Correspondence analysis of the fungal community in Kalahari arenosols, southern Botswana constrained by vegetation and depth. 
+## Figure 3. Correspondence analysis of the fungal community in Kalahari arenosols, southern Botswana constrained by vegetation and depth. 
 Markers indicate the fungal communities of individual samples. Filled markers indicate soil surface/biocrust (0-1 cm depth), open markers indicate subsoil communities (1-2 cm depth). Sample coding: AG=annual grass, PG=perennial grass, S=shrub, T=tree.
 
 ```{r ord, echo=FALSE}
@@ -912,21 +910,21 @@ write.csv(rel_otu_by_factor,file="tables/otus_tax_and_rel_abundance_by_factor.cs
 ```{r pdfout,echo=FALSE,message=FALSE,results='hide'}
 # output pdf figures
 
-fig3 <- zone_plot2
+fig2 <- zone_plot2
 # fig4 <- p2 + theme_bw(base_size = 13, base_family = "") + theme(aspect.ratio=1) + theme(legend.position="bottom")
-fig4 <- p.ord + theme_bw(base_size = 13, base_family = "") + theme(aspect.ratio=1) 
+fig3 <- p.ord + theme_bw(base_size = 13, base_family = "") + theme(aspect.ratio=1) 
 
 # individually
-pdf(file = "figures/Figure 3.pdf", width=8, height=5)
-fig3
+pdf(file = "figures/Figure 2.pdf", width=8, height=5)
+fig2
 dev.off()
 
 #pdf(file = "figures/Figure 4.pdf", width=8, height=6)
 #fig4
 #dev.off()
 
-pdf(file = "figures/Figure 4.pdf", width=5, height=5)
-fig4
+pdf(file = "figures/Figure 3.pdf", width=5, height=5)
+fig3
 dev.off()
 
 ```
