@@ -239,16 +239,18 @@ zone_plot2
 Markers indicate the fungal communities of individual samples. Filled markers indicate soil surface/biocrust (0-1 cm depth), open markers indicate subsoil communities (1-2 cm depth). Sample coding: AG=annual grass, PG=perennial grass, S=shrub, T=tree.
 
 ```{r ord, echo=FALSE}
-  expt.ord <- expt
 
+expt.ord <- expt
 ord <- ordinate(expt.ord,method = "CCA",distance = "bray",formula = ~zone+type)
-p.ord <-   plot_ordination(expt.ord, ord, type = "sites", color = "zone_code", shape="zone_code") + geom_point(alpha=0.7,aes(fill=zc_depth)) + theme(aspect.ratio=1) #+ scale_colour_manual(values=zone_colours, name="Vegetation") + 
-  #scale_fill_manual(values=zcd_fill, name="Vegetation", guide="none") + 
- # scale_shape_manual(values=zone_shapes, name="Vegetation") 
+p.ord <- plot_ordination(expt.ord, ord, type = "sites", color = "zone_code", shape="zone_code") + geom_point(alpha=0.7,aes(fill=zc_depth)) + theme(aspect.ratio=1) + geom_text(aes(label = month),show.legend = FALSE,size=1,vjust="bottom", nudge_y = -0.1)
 
-p.ord$layers <- p.ord$layers[-1]
+# Format the points to identify depth, vegetation, and sampling month
+p.ord <- p.ord + scale_colour_manual(values=zone_colours, name="Vegetation") + 
+scale_fill_manual(values=zcd_fill, name="Vegetation", guide="none") + 
+scale_shape_manual(values=zone_shapes, name="Vegetation") 
+
+# display the figure. Output to PDF is done later.
 p.ord
-
 ```
 
 
