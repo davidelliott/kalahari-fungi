@@ -69,6 +69,9 @@ sample_data(expt)$depth2[sample_data(expt)$depth == 1] <- "1-2 cm"
 samples <- as.character(sample_data(expt)$X.SampleID)
 sample_data(expt)$samples <- as.factor(substr(samples, 1, nchar(samples)-1))
 sample_data(expt)$zc_depth <- paste(sample_data(expt)$zone_code,sample_data(expt)$depth,sep="")
+# Identify the dry season and wet season sampling
+sample_data(expt)$season <- "D"
+sample_data(expt)$season[sample_data(expt)$month=="Mar"] <- "W"
 
 print(expt)
 
@@ -240,7 +243,7 @@ Markers indicate the fungal communities of individual samples. Filled markers in
 
 expt.ord <- expt
 ord <- ordinate(expt.ord,method = "CCA",distance = "bray",formula = ~zone+type)
-p.ord <- plot_ordination(expt.ord, ord, type = "sites", color = "zone_code", shape="zone_code") + geom_point(alpha=0.7,aes(fill=zc_depth)) + theme(aspect.ratio=1) + geom_text(aes(label = month),show.legend = FALSE,size=1,vjust="bottom", nudge_y = -0.1)
+p.ord <- plot_ordination(expt.ord, ord, type = "sites", color = "zone_code", shape="zone_code") + geom_point(alpha=0.7,aes(fill=zc_depth)) + theme(aspect.ratio=1) + geom_text(aes(label = season),show.legend = FALSE,size=1,vjust="bottom", nudge_y = -0.1)
 
 # Format the points to identify depth, vegetation, and sampling month
 p.ord <- p.ord + scale_colour_manual(values=zone_colours, name="Vegetation") + 
@@ -445,7 +448,7 @@ annotation_open <- data.frame(
 annotation_cover <- data.frame(
    x = c(-4.2,4.2),
    y = c(45,45),
-   label = c("More abundant in canopy areas\n(these compared by\ndepth in fig 6B)", "More abundant in grass inter-spaces\n(these compared by\ndepth in fig 6A)")
+   label = c("More abundant in canopy areas\n(these compared by\ndepth in fig 5B)", "More abundant in grass inter-spaces\n(these compared by\ndepth in fig 5A)")
 )
 
 annotation_canopy<- data.frame(
@@ -533,29 +536,29 @@ volcano_depth_canopy <- EnhancedVolcano(deseq_canopy_by_depth_results,
     max.overlaps = 20,
     widthConnectors = 0) + geom_text(data=annotation_canopy, aes( x=x, y=y, label=label), size=4 , fontface="italic") 
 
-
 # create custom names for OTU labelling
 
 deseq_cover_plot <- volcano_cover + theme(legend.position="none") + labs(title = NULL, subtitle = NULL,caption = NULL) 
-deseq_biocrust_depth_plot <- volcano_depth + theme(legend.position="none") + labs(title = NULL, subtitle = NULL,caption = NULL) + labs(tag = "A.") 
-deseq_canopy_depth_plot <- volcano_depth_canopy + theme(legend.position="none") + labs(title = NULL, subtitle = NULL,caption = NULL) + labs(tag = "B.") 
+deseq_biocrust_depth_plot <- volcano_depth + theme(legend.position="none") + labs(title = NULL, subtitle = NULL,caption = NULL) + labs(tag = "A") 
+deseq_canopy_depth_plot <- volcano_depth_canopy + theme(legend.position="none") + labs(title = NULL, subtitle = NULL,caption = NULL) + labs(tag = "B") 
 deseq_volcano_legend <- as_ggplot(get_legend(volcano_depth))
 
 # cover plot
 deseq_cover_plot + labs(title="all taxa by cover type")
 # depth plots
-deseq_biocrust_depth_plot + labs(title="biocrust associated taxa by depth")
-deseq_canopy_depth_plot + labs(title="canopy associated taxa by depth")
+(deseq_biocrust_depth_plot <- deseq_biocrust_depth_plot + labs(subtitle="inter-space associated taxa by depth"))
+(deseq_canopy_depth_plot <- deseq_canopy_depth_plot + labs(subtitle="canopy associated taxa by depth"))
+
 
 # Output to PDF also
-pdf(file = "figures/volcano-plot-cover.pdf", width=9, height=6)
+pdf(file = "figures/Figure 4 [volcano-plot-cover].pdf", width=9, height=6)
 grid.newpage()
 pushViewport(viewport(layout = grid.layout(nrow = 2, ncol = 1, heights = c(6,1)))) 
 print(deseq_cover_plot, vp = viewport(layout.pos.row = 1))
 print(deseq_volcano_legend, vp = viewport(layout.pos.row = 2))
 dev.off()
 
-pdf(file = "figures/volcano-plots-depth.pdf", width=7, height=9)
+pdf(file = "figures/Figure 5 [volcano-plots-depth].pdf", width=7, height=9)
 grid.newpage()
 pushViewport(viewport(layout = grid.layout(nrow = 3, ncol = 1, heights = c(4,4,1)))) 
 print(deseq_biocrust_depth_plot, vp = viewport(layout.pos.row = 1))
@@ -881,6 +884,52 @@ summary(sample_sums(expt))
 cat("total number of fungal sequence reads")
 sum(sample_sums(expt))
 
+# To work out the number of OTUs that are significant, we can use the data from the volcano plots:
+cover_data <- volcano_cover$data
+depth_canopy_data <- volcano_depth_canopy$data
+depth_open_data <- volcano_depth$data
+
+# OTUs that were significantly associated with open areas (places harbouring cyanobacterial biocrusts)
+
+# OTUs significantly associated with canopy areas, 
+
+# From the grass-interspace OTUs we found xx associated with the soil surface and xx associated with the sub-surface soil. From canopy associated OTUs we found xx associated with the soil surface and xx associated with the sub-surface soil. 
+
+
+cat("OTUs significantly more abundant in the inter-space areas (places with biocrust, so they are potentially biocrust associated taxa):\n")
+index <- intersect (which(cover_data$Sig=="FC_P") , which(cover_data$log2FoldChange>0) )
+(interspace_OTUS <- rownames(cover_data[index,]) )
+length(interspace_OTUS)
+
+cat("OTUs significantly more abundant in the canopy areas (places without cyanobacterial biocrust):\n")
+index <- intersect (which(cover_data$Sig=="FC_P") , which(cover_data$log2FoldChange<0) )
+(canopy_OTUS <- rownames(cover_data[index,]) )
+length(canopy_OTUS)
+
+cat("Inter-space associated OTUS that are significantly more abundant in surface (0-1 cm):\n")
+index <- intersect (which(depth_open_data$Sig=="FC_P") , which(depth_open_data$log2FoldChange<0) )
+(open_surface_OTUS <- rownames(depth_open_data[index,]) )
+length(open_surface_OTUS)
+
+cat("Inter-space associated OTUS that are significantly more abundant in subsurface (1-2 cm):\n")
+index <- intersect (which(depth_open_data$Sig=="FC_P") , which(depth_open_data$log2FoldChange>0) )
+(open_subsurface_OTUS <- rownames(depth_open_data[index,]) )
+length(open_subsurface_OTUS)
+
+
+
+cat("Canopy associated OTUS that are significantly more abundant in surface (0-1 cm):\n")
+index <- intersect (which(depth_canopy_data$Sig=="FC_P") , which(depth_canopy_data$log2FoldChange<0) )
+(canopy_surface_OTUS <- rownames(depth_canopy_data[index,]) )
+length(canopy_surface_OTUS)
+
+cat("Canopy associated OTUS that are significantly more abundant in subsurface (1-2 cm):\n")
+index <- intersect (which(depth_canopy_data$Sig=="FC_P") , which(depth_canopy_data$log2FoldChange>0) )
+(canopy_subsurface_OTUS <- rownames(depth_canopy_data[index,]) )
+length(canopy_subsurface_OTUS)
+
+
+
 ```
 
 
@@ -915,7 +964,7 @@ fig2 <- zone_plot2
 fig3 <- p.ord + theme_bw(base_size = 13, base_family = "") + theme(aspect.ratio=1) 
 
 # individually
-pdf(file = "figures/Figure 2.pdf", width=8, height=5)
+pdf(file = "figures/Figure 2 [fungal class abundance].pdf", width=8, height=5)
 fig2
 dev.off()
 
@@ -923,7 +972,7 @@ dev.off()
 #fig4
 #dev.off()
 
-pdf(file = "figures/Figure 3.pdf", width=5, height=5)
+pdf(file = "figures/Figure 3 [fungal community correspondence analysis].pdf", width=5, height=5)
 fig3
 dev.off()
 
