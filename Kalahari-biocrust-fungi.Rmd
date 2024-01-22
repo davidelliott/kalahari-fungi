@@ -916,7 +916,10 @@ index <- intersect (which(depth_open_data$Sig=="FC_P") , which(depth_open_data$l
 (open_subsurface_OTUS <- rownames(depth_open_data[index,]) )
 length(open_subsurface_OTUS)
 
-
+cat("Inter-space associated OTUS that are similarly abundant in surface and subsurface:\n")
+index <- intersect (which(depth_open_data$Sig=="NS") , which(abs(depth_open_data$log2FoldChange)<log_threshold ) )
+(open_cosmopolitan_OTUS <- rownames(depth_open_data[index,]) )
+length(open_cosmopolitan_OTUS)
 
 cat("Canopy associated OTUS that are significantly more abundant in surface (0-1 cm):\n")
 index <- intersect (which(depth_canopy_data$Sig=="FC_P") , which(depth_canopy_data$log2FoldChange<0) )
@@ -928,6 +931,23 @@ index <- intersect (which(depth_canopy_data$Sig=="FC_P") , which(depth_canopy_da
 (canopy_subsurface_OTUS <- rownames(depth_canopy_data[index,]) )
 length(canopy_subsurface_OTUS)
 
+cat("Canopy associated OTUS that are similarly abundant in surface and subsurface:\n")
+index <- intersect (which(depth_canopy_data$Sig=="NS") , which(abs(depth_canopy_data$log2FoldChange)<log_threshold ) )
+(canopy_cosmopolitan_OTUS <- rownames(depth_canopy_data[index,]) )
+length(canopy_cosmopolitan_OTUS)
+
+
+# identify these OTUS in a column of the bigtab, for inclusion in supplementary data
+
+bigtab$identified_association <- "none"
+bigtab[interspace_OTUS,"identified_association"] <- "open areas"
+bigtab[canopy_OTUS,"identified_association"] <- "canopy areas"
+bigtab[open_surface_OTUS,"identified_association"] <- "open areas - surface"
+bigtab[open_subsurface_OTUS,"identified_association"] <- "open areas - subsurface"
+bigtab[open_cosmopolitan_OTUS,"identified_association"] <- "open areas - cosmopolitan"
+bigtab[canopy_surface_OTUS,"identified_association"] <- "canopy areas - surface"
+bigtab[canopy_subsurface_OTUS,"identified_association"] <- "canopy areas - subsurface"
+bigtab[canopy_cosmopolitan_OTUS,"identified_association"] <- "canopy areas - cosmopolitan"
 
 
 ```
@@ -937,13 +957,13 @@ length(canopy_subsurface_OTUS)
 # output some tables...
 
 # Sample metadata
-write.csv(map.df,file="tables/sample_data.csv")
+write.csv(map.df,file="tables/Data Sheet 1 [sample_data].csv")
 
 # OTU frequency per sample
 write.csv(otu_table(expt),"tables/otu_count.csv")
 
-# Deseq differential abundance results
-write.csv(bigtab,file="tables/differential-abundance.csv")
+# Deseq differential abundance results, taxonomy
+write.csv(bigtab,file="tables/Data Sheet 2 [taxonomy and differential abundance].csv")
 
 # OTU abundance
 rel_otu <- cbind(tax_table(expt.rel),otu_table(expt.rel))
