@@ -594,12 +594,23 @@ expt.zcdepth <- transform_sample_counts(expt.zcdepth, function(x) x/6)
 rel_otu_by_factor <- cbind(tax_table(expt.zcdepth),t(otu_table(expt.zcdepth)))
 rel_otu_by_factor <- as.data.frame(rel_otu_by_factor )
 
+# Add a column for the total abundance. We will also sort the output by that
+rel_otu_by_factor[,c("AG0","AG1","PG0","PG1","S0","S1","T0","T1")] <- sapply(rel_otu_by_factor[,c("AG0","AG1","PG0","PG1","S0","S1","T0","T1")],as.numeric)
+rel_otu_by_factor$Total <- rowSums(rel_otu_by_factor[,c("AG0","AG1","PG0","PG1","S0","S1","T0","T1")], na.rm=TRUE)
+# Divide the total by 8 to give the average abundance per sample across the whole study (because the summed abundances were per factor)
+rel_otu_by_factor$Total <- rel_otu_by_factor$Total/8
+# sum(rel_otu_by_factor$Total) # it does come to 100 %
+
 # Add the abundance by factor into the bigtab dataframe
 bigtab <- merge(rel_otu_by_factor,bigtab,by.x=0,by.y=0) # the number 0 specifies the row names.
 
-# set row names as OTU names and remove the rownames column, again
+# sort bigtab by the overall abundance of OTUs across whole study
+bigtab <- bigtab[order(bigtab$Total,decreasing = T),]
+
+# set row names as OTU names and change the row.names column into a numeric index that can be used for sorting
 row.names(bigtab) <- bigtab$Row.names
-bigtab <- bigtab[,-1]
+colnames(bigtab)[1] <- "OTU_n"
+bigtab[,"OTU_n"] <- as.numeric(substr(x = bigtab[,1] , start = 5, stop=9))
 
 # make a list of OTUs that are associated by depth
 OTU_depth_associated.open <- row.names(bigtab[(!is.na(bigtab$padj.open.depth)) & (bigtab$padj.open.depth<0.05),])
