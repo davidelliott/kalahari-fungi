@@ -11,6 +11,7 @@
 cd data/fungi
 
 # import the otus
+# These contain only the ITS1 region after ITSx filtering, and are provided in supplementary data
 qiime tools import \
   --input-path otus.fa \
   --output-path sequences.qza \
