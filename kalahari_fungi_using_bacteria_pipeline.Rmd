@@ -97,8 +97,12 @@ theme_set(theme_bw(base_size = 12, base_family = ""))
 alpha = 0.75
 # define colour scales
 #color_var = c(levels((get_variable(expt, "type"))), levels((get_variable(expt, "zone_code"))), levels((get_variable(expt, "cover"))))
+<<<<<<< HEAD
 # color_var = c(levels((get_variable(expt, "type"))), levels((get_variable(expt, "zone_code"))))
 color_var = unique(c(get_variable(expt, "type"),get_variable(expt, "zone_code")))
+=======
+color_var = c(levels((get_variable(expt, "type"))), levels((get_variable(expt, "zone_code"))))
+>>>>>>> 9a02c0369992ebc3769076b5bd70ebe4109fc6f8
 
 color_pal = brewer.pal(length(color_var), "Set1")
 names(color_pal) <- color_var
