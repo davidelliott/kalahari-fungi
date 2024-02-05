@@ -45,11 +45,8 @@ This analysis was updated after reviewer feedback as follows:
 * Due to better taxonomy in the new UNITE, the custom approach to taxonomy is removed
 * Slightly alter the DESeq analysis to work on the exact same subsetted objects as was used for the ADONIS - this makes a bit more logical sense and does not affect the results much. Specifically, the depth analysis is performed separately on the open grass sites (=cyanobacterial biocrust areas), and canopy places.
 * Use volcano plots to display the DESeq2 results. This includes using a more sophisticated approach to OTU selection for comparisons
-<<<<<<< HEAD
 * Run the fungi data through the pipeline used for the bacteria paper - in separate script "kalahari_fungi_using_bacteria_pipeline.Rmd"
-=======
-* Run the fungi data through the pipeline used for the bacteria paper - in separate script kalahari_BSC_fungi.Rmd
->>>>>>> 9a02c0369992ebc3769076b5bd70ebe4109fc6f8
+
 
 # Import data and setup
 
@@ -569,7 +566,7 @@ dev.off()
 
 
 
-```{r deseq_tables,echo=FALSE}
+```{r deseq_tables,echo=FALSE, warning=FALSE}
 # the deseq analyses produced multiple outputs depending on the comparisons made
 # here they are adjusted and combined for eventual output
 
