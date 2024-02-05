@@ -1,9 +1,10 @@
 ---
-title: "Kalahari Fungi - Analysis in R to follow the upstream preparation in file kf_analysis.sh and QIIME-notes.txt"
+title: "Biocrusts in Kalahari Sands include spatially structured fungal communities which correlate with bacterial communities"
 output:
   html_document:
     toc: yes
 ---
+
 ```{r setup, echo=FALSE, cache=FALSE}
 options(width = 400)
 # create folders for output of tables and figures
@@ -30,7 +31,11 @@ veganotu = function(physeq) {
 }
 ```
 
+
+
 Analysis of fungal sequence data derived from the same DNA extractions as those used in our previous bacterial analysis ([Elliott et al 2014](http://dx.doi.org/10.1007/s10531-014-0684-8)). The analysis for that paper can be found [here](http://davidelliott.github.io/kalahari_bacteria/kalahari_BSC_bacteria.html). 
+
+This analysis in R follows the upstream preparation in file kf_analysis.sh and QIIME-notes.txt. 
 
 # Revision notes
 This analysis was updated after reviewer feedback as follows:
@@ -40,6 +45,7 @@ This analysis was updated after reviewer feedback as follows:
 * Due to better taxonomy in the new UNITE, the custom approach to taxonomy is removed
 * Slightly alter the DESeq analysis to work on the exact same subsetted objects as was used for the ADONIS - this makes a bit more logical sense and does not affect the results much. Specifically, the depth analysis is performed separately on the open grass sites (=cyanobacterial biocrust areas), and canopy places.
 * Use volcano plots to display the DESeq2 results. This includes using a more sophisticated approach to OTU selection for comparisons
+* Run the fungi data through the pipeline used for the bacteria paper - in separate script kalahari_BSC_fungi.Rmd
 
 # Import data and setup
 
@@ -235,7 +241,7 @@ Markers indicate the fungal communities of individual samples. Filled markers in
 ```{r ord, echo=FALSE}
 expt.ord <- expt
 ord <- ordinate(expt.ord,method = "CCA",distance = "bray",formula = ~zone+type)
-p.ord <- plot_ordination(expt.ord, ord, type = "sites", color = "zone_code", shape="zone_code") + geom_point(alpha=0.7,aes(fill=zc_depth)) + theme(aspect.ratio=1) + geom_text(aes(label = season),show.legend = FALSE,size=1,vjust="bottom", nudge_y = -0.1)
+p.ord <- plot_ordination(expt.ord, ord, type = "sites", color = "zone_code", shape="zone_code") + geom_point(alpha=0.7,aes(fill=zc_depth)) + theme(aspect.ratio=1) + geom_text(aes(label = season),show.legend = FALSE,vjust="bottom", size=2, nudge_y = -0.1)
 
 # Format the points to identify depth, vegetation, and sampling month
 p.ord <- p.ord + scale_colour_manual(values=zone_colours, name="Vegetation") + 
@@ -244,6 +250,7 @@ scale_shape_manual(values=zone_shapes, name="Vegetation")
 
 # display the figure. Output to PDF is done later.
 p.ord
+
 ```
 
 
@@ -435,9 +442,9 @@ annotation_open <- data.frame(
 )
 
 annotation_cover <- data.frame(
-   x = c(-4.2,4.2),
-   y = c(45,45),
-   label = c("More abundant in canopy areas\n(these compared by\ndepth in fig 5B)", "More abundant in grass inter-spaces\n(these compared by\ndepth in fig 5A)")
+   x = c(-4.4,4.4),
+   y = c(41,41),
+   label = c("More abundant in\ncanopy areas\n(these compared by\ndepth in fig 5B)", "More abundant in\ngrass inter-spaces\n(these compared by\ndepth in fig 5A)")
 )
 
 annotation_canopy<- data.frame(
@@ -527,13 +534,13 @@ volcano_depth_canopy <- EnhancedVolcano(deseq_canopy_by_depth_results,
 
 # create custom names for OTU labelling
 
-deseq_cover_plot <- volcano_cover + theme(legend.position="none") + labs(title = NULL, subtitle = NULL,caption = NULL) 
-deseq_biocrust_depth_plot <- volcano_depth + theme(legend.position="none") + labs(title = NULL, subtitle = NULL,caption = NULL) + labs(tag = "A") 
-deseq_canopy_depth_plot <- volcano_depth_canopy + theme(legend.position="none") + labs(title = NULL, subtitle = NULL,caption = NULL) + labs(tag = "B") 
+deseq_cover_plot <- volcano_cover + theme(legend.position="none") + labs(title = NULL, subtitle = NULL,caption = NULL) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+deseq_biocrust_depth_plot <- volcano_depth + theme(legend.position="none") + labs(title = NULL, subtitle = NULL,caption = NULL) + labs(tag = "A") + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+deseq_canopy_depth_plot <- volcano_depth_canopy + theme(legend.position="none") + labs(title = NULL, subtitle = NULL,caption = NULL) + labs(tag = "B") + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) 
 deseq_volcano_legend <- as_ggplot(get_legend(volcano_depth))
 
 # cover plot
-deseq_cover_plot + labs(title="all taxa by cover type")
+deseq_cover_plot + labs(title="all taxa by cover type") 
 # depth plots
 (deseq_biocrust_depth_plot <- deseq_biocrust_depth_plot + labs(subtitle="inter-space associated taxa by depth"))
 (deseq_canopy_depth_plot <- deseq_canopy_depth_plot + labs(subtitle="canopy associated taxa by depth"))
@@ -995,6 +1002,7 @@ write.csv(rel_otu_by_factor,file="tables/otus_tax_and_rel_abundance_by_factor.cs
 fig2 <- zone_plot2
 # fig4 <- p2 + theme_bw(base_size = 13, base_family = "") + theme(aspect.ratio=1) + theme(legend.position="bottom")
 fig3 <- p.ord + theme_bw(base_size = 13, base_family = "") + theme(aspect.ratio=1) 
+#fig3 <- p.ord + theme_bw(base_family = "") + theme(aspect.ratio=1) 
 
 # individually
 pdf(file = "figures/Figure 2 [fungal class abundance].pdf", width=8, height=5)
@@ -1005,7 +1013,7 @@ dev.off()
 #fig4
 #dev.off()
 
-pdf(file = "figures/Figure 3 [fungal community correspondence analysis].pdf", width=5, height=5)
+pdf(file = "figures/Figure 3 [fungal community correspondence analysis].pdf", width=8, height=8)
 fig3
 dev.off()
 
